@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# Node/Frontend
+node_modules/
+src/frontend/dist/
+src/frontend/.vite/
+
+# Data (large files — tracked separately or downloaded)
+data/manuscripts/*/images/
+data/models/
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
