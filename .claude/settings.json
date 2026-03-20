@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"$CONDA\" env update -n aenigmata -f \"$ROOT/environment.yml\" --prune)",
+      "Bash(\"$CONDA\" run -n aenigmata pip install -e \"$ROOT\")",
+      "Bash(\"$CONDA\" run -n aenigmata pip install -e \"$ROOT\" --no-deps)",
+      "Bash(TESSDATA=\"c:/Users/mrcgo/anaconda3/envs/aenigmata/share/tessdata\" ls:*)",
+      "Bash(CONDA_PYTHON=\"c:/Users/mrcgo/anaconda3/envs/aenigmata/python.exe\")",
+      "Bash(TESSDATA=\"c:/Users/mrcgo/anaconda3/envs/aenigmata/share/tessdata\")",
+      "Bash(__NEW_LINE_9540fda3e69e0c2d__ \"$CONDA_PYTHON\":*)",
+      "Bash(PYTHON=\"c:/Users/mrcgo/anaconda3/envs/aenigmata/python.exe\")",
+      "Bash(\"$PYTHON\" -c:*)",
+      "Bash(TESS=\"c:/Users/mrcgo/anaconda3/envs/aenigmata/Library/bin/tesseract.exe\")",
+      "Bash(__NEW_LINE_a88d95a41ca222ea__ \"$PYTHON\" -W ignore -c \":*)",
+      "Bash(cmd /c:*)",
+      "Bash(powershell -NoProfile -Command \"& { $out = & ''C:\\\\Users\\\\mrcgo\\\\anaconda3\\\\envs\\\\aenigmata\\\\python.exe'' ''C:\\\\Users\\\\mrcgo\\\\Desktop\\\\prog\\\\proyectos\\\\books\\\\aenigmata_retexere\\\\scripts\\\\_check_env.py'' 2>&1; Write-Output $out; exit $LASTEXITCODE }\")",
+      "Bash(powershell -NoProfile:*)",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell:*)",
+      "Bash(wc -l /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/api/main.py /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/api/routes/*.py)",
+      "Bash(wc -l /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/frontend/src/components/*.tsx /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/lexicon/*.py)",
+      "Bash(wc -l /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/ocr/*.py /c/Users/mrcgo/Desktop/prog/proyectos/books/aenigmata_retexere/src/lexicon/ingest/*.py)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\mrcgo\\AppData\\Local\\Temp"
+    ]
+  }
+}

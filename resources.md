@@ -1,0 +1,19 @@
+Lexicons and dictionaries:
+Logeion — https://logeion.uchicago.edu/ — This is your single best everyday tool. Type any Greek word (no accents needed, Latin or Greek keyboard) and it simultaneously queries LSJ, Middle Liddell, Autenrieth, Slater, the Diccionario Griego-Español, and more. Also available as a free mobile app. This should be your first stop for any word.
+Perseus Word Study Tool — https://www.perseus.tufts.edu/hopper/morph — Paste any Greek word and get full morphological parsing (case, tense, mood, voice) plus links into the LSJ entry. Essential when you encounter an inflected form in the manuscript and need to get back to the dictionary headword.
+LSJ at Perseus/Chicago — https://perseus.uchicago.edu/ — The full Liddell-Scott-Jones lexicon, searchable. This is the comprehensive classical Greek dictionary with citations from the entire surviving literature.
+Manuscript images and transcriptions:
+DigiVatLib (Codex Vaticanus) — https://digi.vatlib.it/view/MSS_Vat.gr.1209 — The full digital facsimile you're already using. Remember: page numbers, not folio numbers.
+NTVMR (New Testament Virtual Manuscript Room) — https://ntvmr.uni-muenster.de/ — Search for manuscript "20003" (that's the Vaticanus ID). This gives you the NT portion with page-to-verse alignment and transcriptions. Invaluable for verifying your readings against scholarly transcriptions.
+Codex Sinaiticus Project — https://www.codexsinaiticus.org/ — Full scans and transcriptions of the other major 4th-century witness. Cross-referencing Sinaiticus against Vaticanus is how you'll spot variant readings and scribal differences.
+Critical text and Septuagint:
+Kata Biblon LXX — https://www.ellopos.net/elencyclop/septuagint.asp — A searchable online Septuagint text (Rahlfs edition). Useful for checking your OT transcriptions against the critical text.
+STEP Bible (Tyndale House) — https://www.stepbible.org/ — Gives you interlinear Greek text for both LXX and NT with morphological tagging, Strong's numbers, and multiple English translations side by side. You can click any word to get parsing and dictionary info.
+Academic Bible (Deutsche Bibelgesellschaft) — https://www.academic-bible.com/ — Provides access to the Nestle-Aland (NA28) critical apparatus online, showing where the major manuscripts diverge. This is how you'll know when Vaticanus has a unique reading.
+Grammar and morphology:
+Morpheus (Perseus morphological parser) — Integrated into the Perseus Word Study Tool above. When you have a word like ΔΙΕΛΕΥϹΟΜΑΙ from your transcription, it will tell you this is the future middle indicative of διέρχομαι ("I will pass through").
+Textkit — https://www.textkit.com/ — Free downloadable PDFs of Smyth's Greek Grammar and other classical textbooks. The grammar reference is useful when you encounter constructions you don't recognize.
+Corpus search:
+Thesaurus Linguae Graecae (TLG) — https://stephanus.tlg.uci.edu/ — The comprehensive database of all surviving ancient Greek literature. Some features require institutional access, but the basic word search lets you find every attested usage of a word across the entire Greek corpus. This is where you go when you want to know how a word was actually used by Greek speakers, not just what a dictionary says it means.
+Suda Online — https://www.cs.uky.edu/~raphael/sol/sol-html/ — A searchable Byzantine-era Greek encyclopedia/lexicon. Useful for understanding how words were defined by Greek speakers themselves in the medieval period.
+This toolkit covers everything from word lookup to morphological parsing to manuscript comparison to corpus analysis. Between Logeion for quick lookups and Perseus for deep dives, you'll have a solid philological workflow that doesn't depend on theological commentary. Shall I help you navigate to the Gethsemane passage once you get to pages 1303–1306?

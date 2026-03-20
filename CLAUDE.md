@@ -1,8 +1,8 @@
-# CLAUDE.md — Agent Instructions for Aglōssa
+# CLAUDE.md — Agent Instructions
 
 ## Project Overview
 
-Aglōssa is a tool for digitizing ancient Greek manuscripts and exploring their meaning through period-accurate lexical data, free from accumulated theological bias. Read README.md for the mission and ARCHITECTURE.md for technical design.
+**aenigmata** is a tool for digitizing ancient Greek manuscripts and exploring their meaning through period-accurate lexical data (5th century BCE – 5th century CE), free from accumulated theological bias. Read README.md for the mission and ARCHITECTURE.md for technical design.
 
 ## Core Principle
 
@@ -11,9 +11,9 @@ Aglōssa is a tool for digitizing ancient Greek manuscripts and exploring their 
 ## Repository Structure
 
 ```
-aglossa/
+aenigmata/
 ├── src/
-│   ├── ocr/          # Layer 1: Manuscript OCR pipeline (Python)
+│   ├── ocr/          # Layer 1: Manuscript OCR pipeline (Python) — includes readers/ for ManuscriptReader implementations
 │   ├── lexicon/      # Layer 2: Lexical engine + data ingestion (Python)
 │   ├── api/          # Backend API — FastAPI (Python)
 │   └── frontend/     # Layer 3: React + TypeScript UI
@@ -34,13 +34,65 @@ aglossa/
 - **CLTK** — Classical language NLP toolkit
 - **WeasyPrint** — PDF generation
 
+## Runtime Environment
+
+**OS**: Windows 10, running inside VS Code with the Claude Code extension.
+
+**Python**: Managed via **Anaconda**. The active environment is `aenigmata` (Python 3.11).
+Always run Python commands through this environment. Do NOT use `python` or `pip` directly —
+use `conda run -n aenigmata <command>` from the shell, or activate the environment first.
+
+```bash
+# Activate the environment (do this once per terminal session)
+conda activate aenigmata
+
+# Or run a single command without activating:
+conda run -n aenigmata python -m src.lexicon.db --init
+```
+
+**conda PATH** (needed when running from Claude Code's bash shell, where conda is not on PATH):
+```bash
+export PATH="/c/Users/mrcgo/anaconda3/Scripts:/c/Users/mrcgo/anaconda3:/c/Users/mrcgo/anaconda3/condabin:$PATH"
+```
+
+**Encoding**: Windows console defaults to cp1252, which cannot encode Greek text.
+`PYTHONIOENCODING=utf-8` is set as a permanent conda env var in `aenigmata`.
+If Greek output still fails via `conda run`, prefix with `PYTHONIOENCODING=utf-8`.
+
+**Key installed versions** (as of 2026-03-10):
+- Kraken 6.0.3 — API differs from docs written for 5.x (see notes in `src/ocr/recognize.py`)
+- PyTorch 2.9.0+cpu — CPU-only build; reinstalled to fix `shm.dll` DLL error on Windows
+- numpy 2.0.2 — pinned to match `kraken~=2.0.0` requirement
+
+**Kraken 6.x API notes** (important — the public docs describe 5.x):
+- `rpred` is at `kraken.rpred`, NOT `kraken.lib.rpred`
+- `blla.py` is a plain module file; calling `blla.segment()` without a model arg fails with
+  `'kraken.blla' is not a package` because it uses `importlib.resources.files('kraken.blla')`.
+  Workaround: load `blla.mlmodel` explicitly via `TorchVGSLModel.load_model()` and pass it in.
+- Segmentation models need `vgsl.TorchVGSLModel.load_model()`, not `models.load_any()`.
+- All current models (`catlips`, `savile`) have `seg_type='bbox'` — they use **legacy bbox
+  segmentation** (`kraken.pageseg`), not BLLA. Using BLLA with these causes degraded output.
+- **bbox segmentation fix**: `pageseg.segment()` requires an `nlbin`-binarized `'L'`-mode image
+  (NOT `.convert('1')`). With `'L'` input, pageseg returns a proper `Segmentation` object.
+  With a `'1'` input, pageseg returns a legacy dict that `rpred` cannot accept.
+- **pageseg scale parameter**: default `scale=None` finds hundreds of tiny character boxes.
+  Use `scale=30` for manuscript images (~2000–3000px wide) to get proper text line detection
+  (~85 lines per folio vs. 341 character-level boxes at default scale).
+- `pageseg.segment()` issues a "Too many connected components" warning for noisy binary images;
+  with proper `nlbin` binarization this warning appears but doesn't affect results.
+
+**Kraken models** (in `data/models/`, all are `seg_type=bbox`):
+- `model_grc_catlips.mlmodel` — primary model; tested and working with `scale=30`
+- `model_grc_catlips-nfc.mlmodel` / `model_grc_catlips-nfd.mlmodel` — NFC/NFD Unicode variants
+- `model_grc_catlips1.mlmodel` / `model_grc_catlips2.mlmodel` — training iterations
+- `model_grc_savile.mlmodel` — different corpus; untested
+
 ## Development Commands
 
 ```bash
-# Python environment
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+# Python environment — always use the aenigmata conda environment
+conda activate aenigmata
+pip install -e ".[dev]"   # if adding new deps; run inside activated env
 
 # Run API server
 uvicorn src.api.main:app --reload --port 8000
@@ -94,7 +146,7 @@ python -m src.ocr.recognize --manuscript vat.gr.1209 --folio 123r
 
 2. **Multi-hypothesis OCR output** — The OCR pipeline MUST output ranked candidates with confidence scores. Never collapse to a single reading.
 
-3. **Provenance is mandatory** — No lexical data enters the database without a source attribution. The schema enforces this via foreign keys.
+3. **Provenance is mandatory** — No lexical data enters the database without a source attribution. The schema enforces this via `NOT NULL` foreign keys on `source_id` and `lemma_id` in `definitions`, `attestations`, and related tables.
 
 4. **No privileged translation** — The UI never shows "the translation" — it shows definitions from multiple sources and lets the reader decide. When generating exports, present multiple options, not one.
 
@@ -109,7 +161,7 @@ The lexical database (SQLite) is the heart of the project. Key tables:
 - `sources` — Where data comes from (lexicons, corpora, derived analysis)
 - `attestations` — Actual usage examples from dated texts
 - `semantic_fields` — Clusters of modern-language equivalents
-- `drift_flags` — Words where Christian/secular meaning diverges
+- `drift_flags` — Words where Christian/secular meaning diverges (references `definitions.id`, no text duplication)
 
 See ARCHITECTURE.md for the full schema.
 
@@ -149,13 +201,20 @@ Design principles:
 ## Common Tasks
 
 ### Adding a new lexical source
+The ingestion system is open and modular — no core code changes required.
 1. Research the source's terms of use
-2. Write ingestion script in `src/lexicon/ingest/`
-3. Add source metadata to `sources` table (including bias_notes)
-4. Run ingestion and verify with `pytest tests/test_lexicon.py`
+2. Register source in `sources` table (name, type, license, bias_notes)
+3. Write ingestion script in `src/lexicon/ingest/<source_name>.py` — every inserted row must carry the registered `source_id`
+4. Run deduplication against existing lemmas using shared utilities
+5. Verify with `pytest tests/test_lexicon.py` (test must confirm no orphaned definitions)
+
+### Adding a new manuscript source
+1. Write a `ManuscriptReader` subclass in `src/ocr/readers/`
+2. Implement `get_manuscript_id()`, `list_folios()`, `get_folio_image()`, `get_folio_metadata()`
+3. Pass the reader instance to the OCR pipeline — no other changes required
 
 ### Processing a new manuscript section
-1. Download folio images to `data/manuscripts/{manuscript_id}/images/`
+1. Instantiate the appropriate `ManuscriptReader` for the source
 2. Run OCR: `python -m src.ocr.recognize --manuscript {id} --folio {folio}`
 3. Review output in `data/manuscripts/{manuscript_id}/ocr/`
 4. Run token-lemma linking: `python -m src.lexicon.linker --manuscript {id} --folio {folio}`

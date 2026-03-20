@@ -1,0 +1,20 @@
+name: aenigmata
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Core runtime
+  - python=3.11
+  - numpy>=1.26
+  - pillow>=10.3
+  - requests>=2.31
+  - opencv>=4.9           # conda-forge build; more reliable on Windows than pip
+  # Tesseract binary + tessdata (conda-forge ships the binary and base data)
+  - tesseract>=5.3
+  # Web / API
+  - pip
+  - pip:
+      - fastapi>=0.111
+      - uvicorn[standard]>=0.29
+      - beautifulsoup4>=4.12
+      - pytesseract>=0.3   # Python wrapper around the tesseract binary above

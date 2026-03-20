@@ -1,8 +1,8 @@
-# Architecture — Aglōssa
+# aenigmata — Architecture
 
 ## System Overview
 
-Aglōssa is composed of three primary layers, each independently useful but designed to work together as a pipeline:
+aenigmata is composed of three primary layers, each independently useful but designed to work together as a pipeline:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -91,12 +91,51 @@ Each folio produces a JSON document:
 }
 ```
 
+### ManuscriptReader Interface
+
+Manuscripts come from heterogeneous sources with different directory layouts, naming conventions, and access methods. A generic abstract interface decouples the OCR pipeline from any specific source:
+
+```python
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+class ManuscriptReader(ABC):
+    """Abstract interface for reading manuscript folio images from any source."""
+
+    @abstractmethod
+    def get_manuscript_id(self) -> str:
+        """Return a stable identifier for this manuscript (e.g., 'vat.gr.1209')."""
+
+    @abstractmethod
+    def list_folios(self) -> list[str]:
+        """Return an ordered list of folio identifiers (e.g., ['1r', '1v', '2r', ...])."""
+
+    @abstractmethod
+    def get_folio_image(self, folio_id: str) -> Path:
+        """Return local path to the folio image, downloading/caching if necessary."""
+
+    @abstractmethod
+    def get_folio_metadata(self, folio_id: str) -> dict:
+        """Return metadata for a folio: dimensions, image_source_url, scribal_hand, etc."""
+```
+
+Concrete implementations live in `src/ocr/readers/`:
+
+| Class | Source | Notes |
+|---|---|---|
+| `IIIFManuscriptReader` | Vatican Digital Library | Fetches via IIIF manifest URL |
+| `BritishLibraryReader` | Codex Sinaiticus (BL) | Direct image download |
+| `LocalManuscriptReader` | Local filesystem | For pre-downloaded or custom images |
+
+Each reader handles its own directory structure and caching. The OCR pipeline only depends on `ManuscriptReader`, so new sources require only a new reader class.
+
 ### Key Design Decisions
 
 - **Multi-hypothesis output**: The OCR never commits to a single reading. Downstream layers can use alternatives.
 - **Coordinate preservation**: Every token maps back to its physical location on the folio for visual verification.
 - **Manuscript-specific models**: Kraken allows training custom recognition models. The Vaticanus has distinct scribal hands (original scribe + later correctors) that require separate models or at minimum separate confidence calibration.
 - **No normalization to modern editions**: The text is captured as it appears on the manuscript, not corrected against modern critical editions.
+- **Source-agnostic pipeline**: The OCR pipeline operates on images delivered by a `ManuscriptReader` implementation; it has no knowledge of where images come from.
 
 ### Technologies
 - **Kraken** — Primary OCR engine, designed for historical scripts
@@ -122,49 +161,56 @@ CREATE TABLE lemmas (
     morphology_json TEXT          -- full morphological paradigm
 );
 
--- Definitions from specific sources
-CREATE TABLE definitions (
-    id INTEGER PRIMARY KEY,
-    lemma_id INTEGER REFERENCES lemmas(id),
-    source_id INTEGER REFERENCES sources(id),
-    definition TEXT NOT NULL,     -- the definition text
-    period_start INTEGER,         -- century (e.g., -5 for 5th century BCE)
-    period_end INTEGER,
-    tradition TEXT,               -- 'secular', 'christian', 'jewish', 'philosophical', etc.
-    original_language TEXT,       -- language the definition is written in
-    confidence REAL               -- how well-attested this meaning is
-);
-
 -- Sources (lexicons, dictionaries, corpora)
+-- Declared before definitions/attestations because they reference it.
+-- New sources are added by registering here + writing an ingest/ script.
+-- type: 'lexicon' | 'corpus' | 'derived'
 CREATE TABLE sources (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,           -- e.g., "Perseus Middle Liddell"
-    type TEXT,                    -- 'lexicon', 'corpus', 'derived'
+    type TEXT NOT NULL,           -- 'lexicon', 'corpus', 'derived'
     date TEXT,                    -- when the source was created
     tradition TEXT,               -- interpretive tradition if any
     url TEXT,                     -- where to find it
-    license TEXT,                 -- licensing information
+    license TEXT NOT NULL,        -- licensing information (required for open-source hygiene)
     bias_notes TEXT               -- known biases or limitations
 );
 
+-- Definitions from specific sources
+-- source_id and lemma_id are mandatory — no orphaned definitions allowed.
+-- confidence: 0.0000–1.0000, representing how well-attested this meaning is
+--   across the corpus (normalized frequency/coverage metric, not OCR probability).
+CREATE TABLE definitions (
+    id INTEGER PRIMARY KEY,
+    lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
+    source_id INTEGER NOT NULL REFERENCES sources(id),
+    definition TEXT NOT NULL,     -- the definition text
+    period_start INTEGER,         -- century (negative = BCE, e.g., -5 = 5th century BCE)
+    period_end INTEGER,           -- century (negative = BCE, e.g., 5 = 5th century CE)
+    tradition TEXT,               -- 'secular', 'christian', 'jewish', 'philosophical', etc.
+    original_language TEXT,       -- language the definition is written in
+    confidence REAL               -- 0.0000–1.0000: attestation strength across corpus
+);
+
 -- Usage attestations from actual texts
+-- source_id and lemma_id are mandatory.
 CREATE TABLE attestations (
     id INTEGER PRIMARY KEY,
-    lemma_id INTEGER REFERENCES lemmas(id),
+    lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
     work TEXT NOT NULL,           -- e.g., "Plato, Republic 509b"
     author TEXT,
-    date_approx INTEGER,         -- approximate century
+    date_approx INTEGER,          -- approximate century (negative = BCE)
     tradition TEXT,               -- secular, christian, etc.
     context TEXT,                 -- surrounding text for context
     translation TEXT,             -- how it's used in this specific passage
-    source_id INTEGER REFERENCES sources(id)
+    source_id INTEGER NOT NULL REFERENCES sources(id)
 );
 
 -- Semantic field mappings
 CREATE TABLE semantic_fields (
     id INTEGER PRIMARY KEY,
-    lemma_id INTEGER REFERENCES lemmas(id),
-    field_name TEXT,              -- e.g., "speech/discourse", "reason/rationality"
+    lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
+    field_name TEXT NOT NULL,     -- e.g., "speech/discourse", "reason/rationality"
     modern_equivalents TEXT,      -- JSON array of modern-language approximations
     notes TEXT                    -- what's lost or gained in each mapping
 );
@@ -172,32 +218,39 @@ CREATE TABLE semantic_fields (
 -- Cross-references between lemmas
 CREATE TABLE cross_references (
     id INTEGER PRIMARY KEY,
-    from_lemma_id INTEGER REFERENCES lemmas(id),
-    to_lemma_id INTEGER REFERENCES lemmas(id),
+    from_lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
+    to_lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
     relationship TEXT,            -- 'synonym', 'antonym', 'semantic_field', 'derived', etc.
     notes TEXT
 );
 
 -- Semantic drift detection
+-- secular_definition_id and christian_definition_id point to representative
+-- definitions in the definitions table — no text is duplicated here.
+-- evidence: JSON array of definition IDs used in the divergence computation.
+-- divergence_score: 0.0000–1.0000 (e.g., cosine distance between embedding centroids)
 CREATE TABLE drift_flags (
     id INTEGER PRIMARY KEY,
-    lemma_id INTEGER REFERENCES lemmas(id),
-    secular_meaning TEXT,
-    christian_meaning TEXT,
-    divergence_score REAL,        -- computed metric
-    evidence TEXT,                -- JSON with supporting data
+    lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
+    secular_definition_id INTEGER REFERENCES definitions(id),   -- representative secular def
+    christian_definition_id INTEGER REFERENCES definitions(id), -- representative christian def
+    divergence_score REAL,        -- 0.0000–1.0000 computed divergence metric
+    evidence TEXT,                -- JSON array of definition IDs used in comparison
     notes TEXT
 );
 
 -- Manuscript-specific: links OCR tokens to lemmas
+-- confidence: 0.0000–1.0000, probability that the morphological parse and
+--   lemma assignment are correct (may reflect multiple competing parses).
 CREATE TABLE token_lemma_links (
     id INTEGER PRIMARY KEY,
-    manuscript TEXT,
-    folio TEXT,
-    token_id TEXT,
-    lemma_id INTEGER REFERENCES lemmas(id),
+    manuscript TEXT NOT NULL,
+    folio TEXT NOT NULL,
+    token_id TEXT NOT NULL,
+    lemma_id INTEGER NOT NULL REFERENCES lemmas(id),
     morphological_form TEXT,      -- specific form in text (e.g., λόγον = acc.sg.)
-    parse TEXT                    -- full morphological parse
+    parse TEXT,                   -- full morphological parse
+    confidence REAL               -- 0.0000–1.0000: parse/lemma assignment confidence
 );
 ```
 
@@ -232,12 +285,31 @@ Beyond ingesting existing lexicons, the engine generates its own data:
 3. **Collocation analysis**: What words appear near each lemma in different traditions
 4. **LXX translation mapping**: For Septuagint words, record which Hebrew/Aramaic term they render, treating this as a data point about translator choice rather than word meaning
 
+### Adding New Sources
+
+The ingestion architecture is intentionally open and modular. Each source is an independent Python module that follows the same pattern:
+
+1. **Register** a row in the `sources` table (name, type, license, bias_notes).
+2. **Write** an ingestion script in `src/lexicon/ingest/<source_name>.py` that reads from the external resource and inserts into `lemmas`, `definitions`, and `attestations` using the registered `source_id`.
+3. **Tag every row** with that `source_id` — the schema enforces this via `NOT NULL`.
+4. **Deduplicate** against existing lemmas using the shared lemma unification utilities.
+5. **Test** in `tests/test_lexicon.py` — a test that verifies the ingest produces valid, non-orphaned data.
+
+No changes to core code are required to add a new source. The `sources.type` field classifies the provenance:
+
+| type | meaning |
+|---|---|
+| `lexicon` | Traditional Greek–English lexicon (e.g., LSJ, Middle Liddell) |
+| `corpus` | Raw text corpus used for frequency/collocation analysis |
+| `derived` | Computationally generated data (e.g., Word2Vec drift scores) |
+
 ### Key Design Decisions
 
 - **SQLite, not a graph database**: Simpler to deploy, fork, and contribute to. The relational model is sufficient and keeps the barrier to entry low. The entire lexical database ships as a single file.
-- **Provenance is mandatory**: No definition exists without a source. This is architectural, not aspirational — the schema enforces it.
+- **Provenance is mandatory**: No definition exists without a source. This is architectural, not aspirational — `source_id NOT NULL` is enforced at the schema level.
 - **Tradition labeling**: Every definition and attestation is tagged with its interpretive tradition so readers can filter and compare.
 - **No privileged source**: The engine doesn't rank dictionaries. It presents what each source says and lets the reader weigh them.
+- **Open ingestion**: Adding a new lexical source requires only a new script and a `sources` row — no changes to core code.
 
 ### Technologies
 - **SQLite** — Database
@@ -326,7 +398,7 @@ For offline study, the system exports annotated PDFs:
 - Footnotes for each word containing top definitions from period sources
 - Margin notes for semantic drift flags
 - Appendix with full lexical entries for all words in the exported section
-- Generated via WeasyPrint or ReportLab from the same data the web UI uses
+- Generated via WeasyPrint from the same data the web UI uses
 
 ### Technologies
 - **React + TypeScript** — Frontend
@@ -370,7 +442,7 @@ Vatican Digital Library (IIIF images)
 ## Directory Structure
 
 ```
-aglossa/
+aenigmata/
 ├── README.md
 ├── ARCHITECTURE.md
 ├── TODO.md
@@ -380,6 +452,11 @@ aglossa/
 │
 ├── src/
 │   ├── ocr/                     # Layer 1: Text Acquisition
+│   │   ├── readers/             # ManuscriptReader implementations
+│   │   │   ├── base.py          # Abstract ManuscriptReader interface
+│   │   │   ├── iiif.py          # IIIFManuscriptReader (Vatican Digital Library)
+│   │   │   ├── british_library.py # BritishLibraryReader (Codex Sinaiticus)
+│   │   │   └── local.py         # LocalManuscriptReader (pre-downloaded images)
 │   │   ├── preprocess.py        # Image preprocessing
 │   │   ├── segment.py           # Region/line detection
 │   │   ├── recognize.py         # OCR with multi-hypothesis output

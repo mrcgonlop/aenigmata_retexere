@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c:*)",
+      "Bash(conda:*)",
+      "Bash(conda info:*)",
+      "Bash(cmd /c \"conda --version && conda info --base\")"
+    ]
+  }
+}

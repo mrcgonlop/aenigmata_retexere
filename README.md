@@ -1,8 +1,6 @@
-# Aglōssa (ἄγλωσσα) — Unmediated Ancient Greek Text Explorer
+# aenigmata — Unmediated Ancient Greek Text Explorer
 
-> *"Without tongue" — letting the texts speak for themselves.*
-
-Aglōssa is an open-source tool for digitizing, analyzing, and exploring ancient Greek manuscripts with the goal of recovering original meaning free from centuries of interpretive layering. Rather than producing a single authoritative translation, Aglōssa builds a **semantic map** for each word — showing the full range of attested meanings in contemporary (3rd–5th century) usage, sourced from both secular and religious corpora, so readers can navigate the possibilities themselves.
+**aenigmata** is an open-source tool for digitizing, analyzing, and exploring ancient Greek manuscripts with the goal of recovering original meaning free from centuries of interpretive layering. Rather than producing a single authoritative translation, it builds a **semantic map** for each word — showing the full range of attested meanings across the target period (roughly 5th century BCE through 5th century CE), sourced from both secular and religious corpora, so readers can navigate the possibilities themselves.
 
 ## The Problem
 
@@ -10,10 +8,10 @@ The overwhelming majority of translations and scholarly apparatus for ancient Gr
 
 ## The Approach
 
-Aglōssa takes a different path:
+aenigmata takes a different path:
 
 1. **Digitize directly from manuscript images** using OCR trained on ancient scribal hands, preserving variant readings and confidence scores rather than collapsing to a single transcription.
-2. **Build a lexical engine grounded in period sources** — prioritizing how words were actually used in the 3rd–5th centuries across the full breadth of Greek literature, not just within Christian texts.
+2. **Build a lexical engine grounded in period sources** — prioritizing how words were actually used from the 5th century BCE through the 5th century CE across the full breadth of Greek literature, not just within Christian texts.
 3. **Present an exploration interface** where every word is a doorway into its full semantic profile — multiple definitions, usage examples, semantic fields, and provenance for every claim — rather than a single "translation."
 
 No word is given a single meaning. No interpretive tradition is privileged. The reader assembles understanding from evidence.
@@ -56,13 +54,6 @@ This project is built on the conviction that ancient texts belong to everyone, n
 - **Kraken/eScriptorium** — Historical manuscript OCR
 - **CLTK + Morpheus** — Ancient Greek morphological analysis
 
-## Getting Started
-
-```bash
-git clone https://github.com/YOUR_USERNAME/aglossa.git
-cd aglossa
-# Setup instructions will be added as components are built
-```
 
 ## Contributing
 

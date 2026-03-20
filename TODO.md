@@ -1,12 +1,12 @@
-# TODO — Aglōssa Roadmap
+# TODO — Roadmap
 
 ## Milestone 0: Project Foundation
-- [ ] Initialize repository structure (directories, configs)
-- [ ] Set up Python project with pyproject.toml (dependencies: cltk, kraken, fastapi, requests, beautifulsoup4, gensim)
-- [ ] Set up frontend project with Vite + React + TypeScript
-- [ ] Create SQLite schema and initialization script
-- [ ] Write CONTRIBUTING.md with guidelines for contributors
-- [ ] Set up basic CI (linting, tests)
+- [x] Initialize repository structure (directories, configs)
+- [x] Set up Python project with pyproject.toml (dependencies: cltk, kraken, fastapi, requests, beautifulsoup4, gensim)
+- [x] Set up frontend project with Vite + React + TypeScript
+- [x] Create SQLite schema and initialization script
+- [x] Write CONTRIBUTING.md with guidelines for contributors
+- [x] Set up basic CI (linting, tests)
 
 ## Milestone 1: Lexical Engine — Data Ingestion
 *Goal: Build a usable lexical database from freely available sources.*
@@ -74,6 +74,83 @@
   - [ ] Process relevant folios
   - [ ] Verify OCR output against known transcriptions
   - [ ] Complete token-lemma linking for all words
+
+## Milestone 2.5: OCR Training Dataset
+*Goal: Build a labeled character/line dataset from the Codex Vaticanus to train hand-specific OCR models.*
+
+The Vaticanus has two distinct scribal hands that require separate models:
+- **Hand A** — folios 1–40 (distinct script style)
+- **Hand B** — folios 41+ (main scribe, currently targeted by the pipeline)
+
+### Character Detection
+- [ ] Implement connected component analysis on binarized line images to extract candidate glyph bboxes
+- [ ] Merge split components (multi-part glyphs like Θ, Φ — vertical overlap heuristic)
+- [ ] Split fused touching characters using projection profile valley detection
+- [ ] Filter noise by aspect ratio and area thresholds
+- [ ] Store per-character bounding boxes in `training.db` linked to their parent line
+
+### Training Data Storage
+- [ ] Define `training_samples` SQLite schema: `(id, manuscript, folio, hand_id, line_image_path, ocr_guess, ground_truth, status, labeled_at)`
+- [ ] Define `training_chars` schema: `(id, sample_id, bbox_json, unicode_label)`
+- [ ] Create `data/training/` directory layout: `images/`, `ground_truth/`, `chars/`
+- [ ] Script to extract and save line crops from existing OCR output into `data/training/images/`
+
+### Labeling API (`src/api/routes/training.py`)
+- [ ] `GET /training/lines` — list lines with label status, filterable by hand and folio
+- [ ] `GET /training/lines/{id}` — return line image path, OCR guess, and character bboxes
+- [ ] `POST /training/lines/{id}/label` — save confirmed ground truth transcription
+- [ ] `POST /training/lines/{id}/chars/{char_id}/label` — label individual character (for char-level review mode)
+- [ ] `GET /training/export` — trigger export of confirmed labels to Kraken training format
+
+### Labeling UI (`src/frontend/src/components/LabelingView.tsx`)
+- [ ] Main labeling layout: line image above, transcription input below
+- [ ] Character box overlay on line image (togglable, highlights detected glyph boundaries)
+- [ ] Pre-fill OCR guess into transcription field as editable starting point
+- [ ] **Virtual keyboard** covering the full Vaticanus character set:
+  - 24 uppercase Greek letters (Α Β Γ Δ Ε Ζ Η Θ Ι Κ Λ Μ Ν Ξ Ο Π Ρ Σ Τ Υ Φ Χ Ψ Ω)
+  - Lunate sigma (Ϲ) — the form actually used in the manuscript
+  - Punctuation: high dot (·), dicolon (÷), paragraph mark (¶)
+  - Nomina sacra buttons with combining overline (U+0305): ΙΣ̄ ΧΣ̄ ΘΣ̄ ΚΣ̄ ΠΝᾹ
+  - Greek numeral markers (combining overline for numeric use)
+  - Diacritic/corrector marks as a secondary panel (breathing marks, accents — for corrector hands only)
+- [ ] Hand selector: tag each session as Hand A (folios 1–40) or Hand B (folios 41+)
+- [ ] Progress bar: labeled / total per hand
+- [ ] Keyboard shortcuts: Enter to confirm + advance, Arrow keys to navigate, Tab to skip
+
+### Transcription Validation
+- [ ] Reject characters outside the Vaticanus character set with a visible warning
+- [ ] Flag suspiciously short transcriptions relative to detected character count
+- [ ] Detect probable nomina sacra sequences (common abbreviation patterns) and warn if overline is missing
+
+### Line Segmentation Training
+*Current pageseg (rule-based, scale=30) produces poor line boundaries. Replace with a BLLA neural segmenter trained on Vaticanus ground truth.*
+
+- [ ] **Segmentation ground truth authoring**
+  - [ ] Add bbox-editing mode to the HTML labeling interface: drag to adjust line bboxes, add/delete lines
+  - [ ] Export corrected line bboxes from the labeling interface as PAGE XML (the format `ketos segtrain` requires)
+  - [ ] Script `scripts/export_seg_gt.py`: reads labeled JSON + corrections → writes PAGE XML into `data/training/seg_gt/`
+  - [ ] Aim for ≥ 5 fully corrected folios as initial training set
+
+- [ ] **BLLA segmentation model training**
+  - [ ] Verify `ketos segtrain` is available in the `aenigmata` conda env
+  - [ ] `scripts/train_seg.py` — wrapper for `ketos segtrain` with project-standard paths and train/eval split
+  - [ ] Train initial model: `ketos segtrain -d data/training/seg_gt/ -o data/models/seg_vat_blla`
+  - [ ] Evaluate on held-out folio; compare line count and boundary quality against pageseg baseline
+  - [ ] Document training command and model path in CLAUDE.md once first model is validated
+
+- [ ] **Pipeline integration**
+  - [ ] Update `src/ocr/recognize.py` to accept `--seg-model` flag pointing to a trained BLLA model
+  - [ ] When `--seg-model` is provided, call `blla.segment()` instead of `pageseg.segment()`
+  - [ ] Keep pageseg as the fallback when no seg model is specified
+  - [ ] Add model path to CLAUDE.md once a satisfactory model is produced
+
+### Recognition Model Training
+- [ ] `scripts/export_training.py` — write confirmed labels as Kraken training pairs: `line_XXXX.png` + `line_XXXX.gt.txt`
+- [ ] Separate exports per hand: `data/training/hand_a/` and `data/training/hand_b/`
+- [ ] 90/10 train/eval split per hand
+- [ ] Document `ketos train` fine-tuning command in CLAUDE.md once first export is validated
+
+---
 
 ## Milestone 3: Exploration Interface — MVP
 *Goal: A working web UI for exploring the digitized text with lexical data.*

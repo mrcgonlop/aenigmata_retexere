@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aenigmata"
+version = "0.1.0"
+description = "Unmediated Ancient Greek text explorer"
+requires-python = ">=3.11"
+dependencies = [
+    # Lightweight / pure-Python deps only.
+    # Heavy binary packages (torch, scipy, opencv, tesseract) are managed by
+    # conda via environment.yml to avoid source builds on Windows.
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "Pillow>=10.3",
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "pytesseract>=0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+# Heavy ML/NLP stack — requires conda to have installed torch/scipy/opencv first:
+#   conda install -c conda-forge scipy "pytorch::pytorch" scikit-learn
+#   pip install -e ".[nlp]"
+nlp = [
+    "cltk>=1.1",
+    "gensim>=4.3",
+    "scikit-learn>=1.4",
+]
+# Additional OCR backends beyond Tesseract:
+#   pip install -e ".[ocr]"
+ocr = [
+    "kraken>=5.2",
+    "easyocr>=1.7",
+]
+# PDF export:
+pdf = [
+    "weasyprint>=62",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

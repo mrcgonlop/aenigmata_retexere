@@ -17,6 +17,7 @@ src/frontend/.vite/
 # Data (large files — tracked separately or downloaded)
 data/manuscripts/*/images/
 data/models/
+data/lexicon.db
 *.db-journal
 
 # IDE
